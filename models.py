@@ -95,6 +95,7 @@ class GAN_256():
             #label_real = Variable(label.fill_(1))
             #lossG_GAN = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
             #lossG_L1 = self.L1(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
+            
             lossG_L1 = self.L2(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
 
             #lossG = lossG_GAN + self.l1_weight * lossG_L1

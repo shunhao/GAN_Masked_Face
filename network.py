@@ -77,10 +77,13 @@ class Generator_256(nn.Module):
         self.traver16 = nn.Conv2d(128, 16, kernel_size=1, stride=1, padding=0)
         self.bn16 = nn.BatchNorm2d(16)
 
-        #self.traver17 = nn.Linear(128*128*16, 128*128*3)
-        self.linears = nn.ModuleList([nn.Linear(16, 3) for i in range(128*128)])
+        self.traver1addition = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+        self.bn1addition = nn.BatchNorm2d(16)
 
-        #self.traver17 = nn.Conv2d(6, 3, kernel_size = 1, stride = 1, padding = 0)
+        self.traver17 = nn.Conv2d(32, 3, kernel_size=1, stride=1, padding=0)
+        #self.linears = nn.ModuleList([nn.Linear(16, 3) for i in range(128*128)])
+
+        
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -89,8 +92,8 @@ class Generator_256(nn.Module):
             if isinstance(m, nn.ConvTranspose2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
-            if isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 1)
+            #if isinstance(m, nn.Linear):
+            #    m.weight.data.normal_(0, 1)
 
     def forward(self, input):
         x = self.conv1(input)
@@ -170,15 +173,22 @@ class Generator_256(nn.Module):
         x = self.traver16(x)
         x = self.bn16(x) #added
         x = self.relu(x)
-        
-        x = x.view(x.shape[0], -1)
-        y = torch.zeros((x.shape[0]*128*128*3), dtype=torch.float)
-        for i in range(128*128):
-            y[i*3:(i+1)*3] = self.linears[i]()
-            
 
+        temp = self.traver1addition(input)
+        temp = self.bn1addition(temp)
+        x = self.traver17(torch.cat([x, temp], dim = 1))
+        x = self.relu(x)
+        #x = x.view(x.shape[0], -1)
+        #x = self.traver17(x).view(x.shape[0], 3, 128, 128)
 
-
+        #y = torch.empty((x.shape[0], 0), dtype=torch.float).cuda()
+        #for xshape in range(x.shape[0]):
+        #for i in range(128*128):
+        #    temp = self.linears[i](x[:, i*16:(i+1)*16])
+            #print(temp.shape)
+            #y[xshape, i*3:(i+1)*3] = self.linears[i](x[xshape, i*16:(i+1)*16])
+        #    y = torch.cat([y, temp], dim=1)
+        #y = y.view(x.shape[0], 3, 128, 128)
         return x
 
 
