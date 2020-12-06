@@ -15,6 +15,7 @@ class Generator_256(nn.Module):
 
         self.leakyrelu = nn.LeakyReLU(0.1)
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
         # [batch, 256, 256, 64] => [batch, 128, 128, 64]
         self.conv2 = nn.Conv2d(64, 64, kernel_size=4, stride=2, padding=1)
@@ -98,37 +99,37 @@ class Generator_256(nn.Module):
     def forward(self, input):
         x = self.conv1(input)
         x = self.bn1(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         feature1 = x
 
         x = self.conv2(x)
         x = self.bn2(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         feature2 = x
 
         x = self.conv3(x)
         x = self.bn3(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         feature3 = x
 
         x = self.conv4(x)
         x = self.bn4(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         feature4 = x
 
         x = self.conv5(x)
         x = self.bn5(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         feature5 = x
 
         x = self.conv6(x)
         x = self.bn6(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         feature6 = x
 
         x = self.conv7(x)
         x = self.bn7(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
         #feature7 = x
 
         #x = self.conv8(x)
@@ -142,32 +143,32 @@ class Generator_256(nn.Module):
 
         x = self.traver10(x)
         x = self.bn10(x)
-        x = self.relu(x)
+        x = self.sigmoid(x)
         x = torch.cat([x, feature6], dim=1)
 
         x = self.traver11(x)
         x = self.bn11(x)
-        x = self.relu(x)
+        x = self.sigmoid(x)
         x = torch.cat([x, feature5], dim=1)
 
         x = self.traver12(x)
         x = self.bn12(x)
-        x = self.relu(x)
+        x = self.sigmoid(x)
         x = torch.cat([x, feature4], dim=1)
 
         x = self.traver13(x)
         x = self.bn13(x)
-        x = self.relu(x)
+        x = self.sigmoid(x)
         x = torch.cat([x, feature3], dim=1)
 
         x = self.traver14(x)
         x = self.bn14(x)
-        x = self.relu(x)
+        x = self.sigmoid(x)
         x = torch.cat([x, feature2], dim=1)
 
         x = self.traver15(x)
         x = self.bn15(x)
-        x = self.relu(x)
+        x = self.sigmoid(x)
         x = torch.cat([x, feature1], dim=1)
 
         x = self.traver16(x)
@@ -197,22 +198,38 @@ class Discriminator_256(nn.Module):
         super().__init__()
 
         # networks layers here
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
 
         self.leakyrelu = nn.LeakyReLU(0.1)
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
-        self.bn2 = nn.BatchNorm2d(128)
+        # [batch, 256, 256, 64] => [batch, 128, 128, 64]
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=4, stride=2, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
 
-        self.conv3 = nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1)
-        self.bn3 = nn.BatchNorm2d(256)
+        # [batch, 128, 128, 64] => [batch, 64, 64, 128]
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
 
-        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(512)
+        # [batch, 64, 64, 128] => [batch, 32, 32, 256]
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1)
+        self.bn4 = nn.BatchNorm2d(256)
 
-        self.conv5 = nn.Conv2d(512, 1, kernel_size=32, stride=1, padding=0)
+        # [batch, 32, 32, 256] => [batch, 16, 16, 512]
+        self.conv5 = nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1)
+        self.bn5 = nn.BatchNorm2d(512)
+
+        # [batch, 16, 16, 512] => [batch, 8, 8, 512]
+        self.conv6 = nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1)
+        self.bn6 = nn.BatchNorm2d(512)
+
+        # [batch, 8, 8, 512] => [batch, 4, 4, 512]
+        self.conv7 = nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1)
+        self.bn7 = nn.BatchNorm2d(512)
+
+        self.linear = nn.Linear(2*2*512, 1)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -222,22 +239,33 @@ class Discriminator_256(nn.Module):
     def forward(self, input):
         x = self.conv1(input)
         x = self.bn1(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
 
         x = self.conv2(x)
         x = self.bn2(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
 
         x = self.conv3(x)
         x = self.bn3(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
 
         x = self.conv4(x)
         x = self.bn4(x)
-        x = self.leakyrelu(x)
+        x = self.sigmoid(x)
 
         x = self.conv5(x)
-        x = torch.sigmoid(x)
+        x = self.bn5(x)
+        x = self.sigmoid(x)
+
+        x = self.conv6(x)
+        x = self.bn6(x)
+        x = self.sigmoid(x)
+
+        x = self.conv7(x)
+        x = self.bn7(x)
+        x = self.sigmoid(x)
+
+        x = self.linear(x.view(x.shape[0], -1))
  
         return x
 

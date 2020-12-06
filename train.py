@@ -5,11 +5,11 @@ from dataset import FacadeDataset_504
 from utils import visual_result_singleModel
 
 def train(num_epoch, batch_size, learning_rate, l1_weight):
-    train_data = FacadeDataset_504(flag='train', data_range=(0, 3))
+    train_data = FacadeDataset_504(flag='train', data_range=(0, 24))
     train_loader = DataLoader(train_data, batch_size=batch_size)
-    val_data = FacadeDataset_504(flag='train', data_range=(0, 1))
+    val_data = FacadeDataset_504(flag='train', data_range=(5, 8))
     val_loader = DataLoader(val_data, batch_size=batch_size)
-    visual_data = next(iter(DataLoader(val_data, batch_size=3)))
+    visual_data = next(iter(DataLoader(val_data, batch_size=4)))
 
     GAN = GAN_256(learning_rate=learning_rate, l1_weight=l1_weight)
 
@@ -22,7 +22,7 @@ def train(num_epoch, batch_size, learning_rate, l1_weight):
             print('----------------------------- epoch {:d} -----------------------------'.format(epoch + 1))
         GAN.train_one_epoch(train_loader, val_loader, epoch)
         
-        if epoch % 200 == 0:
+        if epoch % 50 == 0:
             visual_result_singleModel(visual_data[0], visual_data[1], GAN.G_model, GAN.trained_epoch+1)
 
     GAN.plot_loss()
@@ -31,4 +31,4 @@ def train(num_epoch, batch_size, learning_rate, l1_weight):
 
 
 if __name__ == '__main__':
-    train(num_epoch=5001, batch_size=1, learning_rate=1e-4, l1_weight=5)
+    train(num_epoch=501, batch_size=5, learning_rate=1e-4, l1_weight=5)

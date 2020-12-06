@@ -22,10 +22,12 @@ class GAN_256():
         except TypeError:
             print("cuda is not available!")
 
-        self.G_optimizer = optim.Adam(self.G_model.parameters(), lr=learning_rate)
+        #self.G_optimizer = optim.Adam(self.G_model.parameters(), lr=learning_rate)
+        #self.G_optimizer = optim.SGD(self.G_model.parameters(), lr=learning_rate, momentum = 0.9, nesterov=True)
+        self.G_optimizer = optim.Adadelta(self.G_model.parameters(), lr = 0.1)
         self.D_optimizer = optim.Adam(self.D_model.parameters(), lr=learning_rate)
 
-        self.criterion = nn.BCELoss(reduction='mean')
+        self.criterion = nn.BCEWithLogitsLoss(reduction='mean')
         self.L1 = nn.L1Loss()
         self.L2 = nn.MSELoss()
         self.l1_weight = l1_weight
@@ -51,7 +53,7 @@ class GAN_256():
 
     def train_one_epoch(self, train_loader, val_loader, epoch):
         self.trained_epoch = epoch
-        if epoch % 10 == 0:
+        if epoch % 50 == 0:
           self.l1_weight = self.l1_weight * 0.95
         start = time.time()
         lossesD, lossesD_real, lossesD_fake, lossesG, lossesG_GAN, \
@@ -62,44 +64,45 @@ class GAN_256():
 
         # for gray, color in tqdm(self.train_loader):
         for gray, img_ab in tqdm(train_loader):
+            
             gray = Variable(gray.cuda())
             img_ab = Variable(img_ab.cuda())
 
             # train D with real image
-         #   self.D_model.zero_grad()
-         #   label = torch.FloatTensor(img_ab.size(0)).cuda()
+            self.D_model.zero_grad()
+            label = torch.FloatTensor(img_ab.size(0)).cuda()
 
-         #   D_output = self.D_model(img_ab)
-         #   label_real = Variable(label.fill_(1))
-
-         #   D_loss_real = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
-         #   D_loss_real.backward()
-         #   Dreal = D_output.data.mean()
+            D_output = self.D_model(img_ab)
+            label_real = Variable(label.fill_(0.9))
+            
+            D_loss_real = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
+            D_loss_real.backward()
+            #Dreal = D_output.data.mean()
 
             # train D with Generator
-         #   fake_img = self.G_model(gray)
-         #   D_output = self.D_model(fake_img.detach())
-         #   label_fake = Variable(label.fill_(0))
+            fake_img = self.G_model(gray)
+            D_output = self.D_model(fake_img.detach())
+            label_fake = Variable(label.fill_(0))
 
-         #   D_loss_fake = self.criterion(D_output.reshape(img_ab.size(0)), label_fake)
-         #   D_loss_fake.backward()
+            D_loss_fake = self.criterion(D_output.reshape(img_ab.size(0)), label_fake)
+            D_loss_fake.backward()
 
-         #   lossD = D_loss_real + D_loss_fake
-         #   self.D_optimizer.step()
+            #lossD = D_loss_real + D_loss_fake
+            #self.D_optimizer.step()
 
             # train G
             self.G_model.zero_grad()
 
             fake_img = self.G_model(gray)
             #D_output = self.D_model(fake_img.detach())
-            #label_real = Variable(label.fill_(1))
+            #label_real = Variable(label.fill_(0.9))
             #lossG_GAN = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
             #lossG_L1 = self.L1(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
             
-            lossG_L1 = self.L2(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
+            #lossG_L1 = 
 
             #lossG = lossG_GAN + self.l1_weight * lossG_L1
-            lossG = lossG_L1
+            lossG = self.L2(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
             lossG.backward()
             #Dfake = D_output.data.mean()
             self.G_optimizer.step()
@@ -107,9 +110,9 @@ class GAN_256():
             #lossesD.append(lossD)
             #lossesD_real.append(D_loss_real)
             #lossesD_fake.append(D_loss_fake)
-            lossesG.append(lossG)
+            #lossesG.append(lossG)
             #lossesG_GAN.append(lossG_GAN)
-            lossesG_L1.append(lossG_L1)
+            #lossesG_L1.append(lossG_L1)
             #Dreals.append(Dreal)
             #Dfakes.append(Dfake)
 
@@ -117,9 +120,9 @@ class GAN_256():
         #lossD = torch.stack(lossesD).mean().item()
         #D_loss_real = torch.stack(lossesD_real).mean().item()
         #D_loss_fake = torch.stack(lossesD_fake).mean().item()
-        lossG = torch.stack(lossesG).mean().item()
+        #lossG = torch.stack(lossesG).mean().item()
         #lossG_GAN = torch.stack(lossesG_GAN).mean().item()
-        lossG_L1 = torch.stack(lossesG_L1).mean().item()
+        #lossG_L1 = torch.stack(lossesG_L1).mean().item()
         #Dreal = torch.stack(Dreals).mean().item()
         #Dfake = torch.stack(Dfakes).mean().item()
         #print('loss_D: %.3f (real: %.3f fake: %.3f)  loss_G: %.3f (GAN: %.3f L1: %.3f) D(real): %.3f  '
