@@ -80,7 +80,7 @@ def visual_result_singleModel(gray, reals, model, epoch):
         plt.axis('off')
 
     plt.tight_layout()
-    plt.savefig('/content/val/' + 'epoch%d_val.png' % epoch)
+    plt.savefig('./content/val/' + 'epoch%d_val.png' % epoch)
     plt.clf()
 
 
