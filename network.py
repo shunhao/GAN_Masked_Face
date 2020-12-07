@@ -10,7 +10,7 @@ class Generator_256(nn.Module):
 
         # networks layers here
         # [batch, 256, 256, ch] => [batch, 256, 256, 64]
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, padding_mode = 'replicate')
         self.bn1 = nn.BatchNorm2d(64)
 
         self.leakyrelu = nn.LeakyReLU(0.1)
@@ -78,7 +78,7 @@ class Generator_256(nn.Module):
         self.traver16 = nn.Conv2d(128, 16, kernel_size=1, stride=1, padding=0)
         self.bn16 = nn.BatchNorm2d(16)
 
-        self.traver1addition = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+        self.traver1addition = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, padding_mode = 'replicate')
         self.bn1addition = nn.BatchNorm2d(16)
 
         self.traver17 = nn.Conv2d(32, 3, kernel_size=1, stride=1, padding=0)
@@ -198,7 +198,7 @@ class Discriminator_256(nn.Module):
         super().__init__()
 
         # networks layers here
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, padding_mode = 'replicate')
         self.bn1 = nn.BatchNorm2d(64)
 
         self.leakyrelu = nn.LeakyReLU(0.1)
