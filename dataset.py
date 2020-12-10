@@ -56,10 +56,10 @@ class FacadeDataset_504(Dataset):
             img_real = img_real.astype('float') / 256.0
             img_real = np.transpose(img_real, [2,0,1])
 
-            #self.dataset.append((img_masked, img_real))
+            self.dataset.append((img_tomask, img_real))
             #self.dataset.append((img_masked, img_masked))
-            self.dataset.append((img_tomask, img_tomask))
-            self.dataset.append((img_real, img_real))
+            #self.dataset.append((img_tomask, img_tomask))
+            #self.dataset.append((img_real, img_real))
         print("load dataset done")
 
     def __len__(self):

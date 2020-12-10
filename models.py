@@ -72,23 +72,29 @@ class GAN_256():
             self.D_model.zero_grad()
             label = torch.FloatTensor(img_ab.size(0)).cuda()
 
-            D_output = self.D_model(img_ab)
+            D_output_real = self.D_model(img_ab)
             label_real = Variable(label.fill_(0.9))
             
-            D_loss_real = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
+            D_loss_real = self.criterion(D_output_real.reshape(img_ab.size(0)), label_real)
             D_loss_real.backward()
             #Dreal = D_output.data.mean()
 
             # train D with Generator
-            fake_img = self.G_model(gray)
-            D_output = self.D_model(fake_img.detach())
+            #fake_img = self.G_model(gray)
+            #D_output_fake = self.D_model(fake_img.detach())
             label_fake = Variable(label.fill_(0))
 
-            D_loss_fake = self.criterion(D_output.reshape(img_ab.size(0)), label_fake)
-            D_loss_fake.backward()
+            #D_loss_fake = self.criterion(D_output_fake.reshape(gray.size(0)), label_fake)
+            #D_loss_fake.backward()
 
             #lossD = D_loss_real + D_loss_fake
-            #self.D_optimizer.step()
+
+            
+            D_output_nomask = self.D_model(gray)
+            D_loss_nomask = self.criterion(D_output_nomask.reshape(gray.size(0)), label_fake)
+            D_loss_nomask.backward()
+
+            self.D_optimizer.step()
 
             # train G
             self.G_model.zero_grad()
@@ -99,9 +105,12 @@ class GAN_256():
             #lossG_GAN = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
             #lossG_L1 = self.L1(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
             
-            #lossG_L1 = 
-
             #lossG = lossG_GAN + self.l1_weight * lossG_L1
+            lossG = self.L2(fake_img.view(fake_img.size(0), -1), gray.view(gray.size(0), -1))
+            lossG.backward()
+
+            # pretrain only
+            fake_img = self.G_model(img_ab)
             lossG = self.L2(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
             lossG.backward()
             #Dfake = D_output.data.mean()
