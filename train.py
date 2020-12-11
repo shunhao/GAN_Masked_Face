@@ -25,7 +25,7 @@ def train(num_epoch, batch_size, learning_rate, l1_weight):
         if epoch % 200 == 0:
             visual_result_singleModel(visual_data[0], visual_data[1], GAN.G_model, GAN.trained_epoch+1)
 
-    #GAN.plot_loss()
+    GAN.plot_loss()
     GAN.save()
 
 

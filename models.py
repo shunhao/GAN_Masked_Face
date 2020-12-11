@@ -137,12 +137,12 @@ class GAN_256():
         #loss_all = [lossD, D_loss_real, D_loss_fake, lossG, lossG_GAN, lossG_L1, lossD_val,
         #            lossG_val, Dreal, Dfake]
 
-        #if len(self.loss_history):
-        #    self.loss_history = np.hstack((self.loss_history, np.vstack(loss_all)))
-        #    self.acc_history = np.hstack((self.acc_history, np.vstack([acc_2, acc_5])))
-        #else:
-        #    self.loss_history = np.vstack(loss_all)
-        #    self.acc_history = np.vstack([acc_2, acc_5])
+        if len(self.loss_history):
+            self.loss_history = np.hstack((self.loss_history, np.vstack(loss_all)))
+            self.acc_history = np.hstack((self.acc_history, np.vstack([acc_2, acc_5])))
+        else:
+            self.loss_history = np.vstack(loss_all)
+            self.acc_history = np.vstack([acc_2, acc_5])
 
     def validate(self, val_loader):
         lossesD, lossesG, cnt = 0.0, 0.0, 0
