@@ -9,15 +9,13 @@ The code is tested with Python 3.7.5 and the packages listed in requirements.txt
 The provided requirements.txt can be used to install all the required packages. Use the following commands to install dependencies:
 
 for linux:
-
-'''
+```
 pip install –r requirements.txt
-'''
+```
 for windows:
-
-'''
+```
 py -3 -m pip install -r requirements.txt
-'''
+```
 
 ## Run the Program
 
