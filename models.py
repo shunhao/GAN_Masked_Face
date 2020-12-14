@@ -16,11 +16,17 @@ class GAN_256():
         self.best_acc2 = 0.0
         self.best_acc5 = 0.0
 
-        try:
-            self.G_model = Generator_256().cuda()
-            self.D_model = Discriminator_256().cuda()
-        except TypeError:
-            print("cuda is not available!")
+        self.device = torch.device('cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda:0')
+
+        self.G_model = Generator_256().to(self.device)
+        self.D_model = Discriminator_256().to(self.device)
+        #try:
+        #    self.G_model = Generator_256().cuda()
+        #    self.D_model = Discriminator_256().cuda()
+        #except TypeError:
+        #    print("cuda is not available!")
 
         #self.G_optimizer = optim.Adam(self.G_model.parameters(), lr=learning_rate)
         #self.G_optimizer = optim.SGD(self.G_model.parameters(), lr=learning_rate, momentum = 0.9, nesterov=True)
@@ -51,68 +57,106 @@ class GAN_256():
             self.best_acc2 = checkpoint['best_acc2']
             self.best_acc5 = checkpoint['best_acc5']
 
-    def train_one_epoch(self, train_loader, val_loader, epoch):
+    def train_one_epoch(self, train_loader, val_loader, epoch, pretrain):
         self.trained_epoch = epoch
         if epoch % 50 == 0:
           self.l1_weight = self.l1_weight * 0.95
         start = time.time()
-        lossesD, lossesD_real, lossesD_fake, lossesG, lossesG_GAN, \
-        lossesG_L1, Dreals, Dfakes = [], [], [], [], [], [], [], []
+        #lossesD, lossesD_real, lossesD_fake, lossesG, lossesG_GAN, \
+        #lossesG_L1, Dreals, Dfakes = [], [], [], [], [], [], [], []
 
+        lossesD, lossesG_GAN, lossesG_L1 = 0, 0, 0
         self.G_model.train()
         self.D_model.train()
 
         # for gray, color in tqdm(self.train_loader):
         for gray, img_ab in tqdm(train_loader):
-            
-            gray = Variable(gray.cuda())
-            img_ab = Variable(img_ab.cuda())
-
-            # train D with real image
-            self.D_model.zero_grad()
-            label = torch.FloatTensor(img_ab.size(0)).cuda()
-
-            D_output_real = self.D_model(img_ab)
-            label_real = Variable(label.fill_(0.9))
-            
-            D_loss_real = self.criterion(D_output_real.reshape(img_ab.size(0)), label_real)
-            D_loss_real.backward()
-            #Dreal = D_output.data.mean()
-
-            # train D with Generator
-            #fake_img = self.G_model(gray)
-            #D_output_fake = self.D_model(fake_img.detach())
-            label_fake = Variable(label.fill_(0))
-
-            #D_loss_fake = self.criterion(D_output_fake.reshape(gray.size(0)), label_fake)
-            #D_loss_fake.backward()
 
             #lossD = D_loss_real + D_loss_fake
+            #gray1 = gray.clone().to(self.device)
+            #img_ab1 = img_ab.clone().to(self.device)
+            #gray = Variable(gray.to(self.device).detach())
+            #img_ab = Variable(img_ab.to(self.device).detach())
 
+            # train D with real mask image
+            #if not pretrain:
+            self.D_model.zero_grad()
+            label = torch.FloatTensor(img_ab.size(0)).to(self.device)
+
+            D_output_real = self.D_model(img_ab.detach().to(self.device))
+            label_real = Variable(label.fill_(1))
             
-            D_output_nomask = self.D_model(gray)
-            D_loss_nomask = self.criterion(D_output_nomask.reshape(gray.size(0)), label_fake)
-            D_loss_nomask.backward()
+            D_loss_real = self.criterion(D_output_real.reshape(img_ab.size(0)), label_real)
 
+            D_loss_real.backward()
+            lossesD = D_loss_real.item()
+            
+            # train D with no mask
+            if pretrain:
+                label_fake = Variable(label.fill_(0))
+                D_output_nomask = self.D_model(gray.detach().to(self.device))
+                D_loss_nomask = self.criterion(D_output_nomask.reshape(gray.size(0)), label_fake)
+                D_loss_nomask.backward()
+                lossesD += D_loss_nomask.item()
+
+            # train D with Generator
+            #if not pretrain:
+    
+            label_fake = Variable(label.fill_(0))
+            fake_img = self.G_model(gray.detach().to(self.device))
+            D_output_fake = self.D_model(fake_img)
+            D_loss_fake = self.criterion(D_output_fake.reshape(gray.size(0)), label_fake)
+            #D_loss = self.L2(D_output_fake.reshape(D_output_fake.shape[0], -1), D_output_real.reshape(D_output_real.shape[0], -1))
+            D_loss_fake.backward()
+            lossesD += D_loss_fake.item()
+          
             self.D_optimizer.step()
 
             # train G
             self.G_model.zero_grad()
 
-            fake_img = self.G_model(gray)
-            #D_output = self.D_model(fake_img.detach())
-            #label_real = Variable(label.fill_(0.9))
-            #lossG_GAN = self.criterion(D_output.reshape(img_ab.size(0)), label_real)
-            #lossG_L1 = self.L1(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
+            #
+            if not pretrain:
+                fake_img_G = self.G_model(gray.detach().to(self.device))
+                D_output_fake_G = self.D_model(fake_img_G)
+                label = torch.FloatTensor(img_ab.size(0)).to(self.device)
+                label_real = Variable(label.fill_(1))
+                lossG_GAN = self.criterion(D_output_fake_G.reshape(gray.size(0)), label_real)
+                #lossG_GAN = self.L2(D_output_fake_G.view(D_output_fake_G.shape[0], -1), D_output_real_G.view(D_output_real_G.shape[0], -1))
+
+                #fake_img_G[:, :, 50:, 20:-20] *= 0.2
+                #gray2[:, :, 50:, 20:-20] *= 0.2
+                #
+                #lossG_L1 = self.L2(fake_img_G.view(fake_img_G.size(0), -1), gray2.view(gray2.size(0), -1))
             
-            #lossG = lossG_GAN + self.l1_weight * lossG_L1
-            lossG = self.L2(fake_img.view(fake_img.size(0), -1), gray.view(gray.size(0), -1))
-            lossG.backward()
+                #lossG =  lossG_GAN #+ self.l1_weight * lossG_L1
+
+                lossG_GAN.backward()
+                lossesG_GAN += lossG_GAN.item() 
+                #lossesG_L1 += lossG_L1.item()
+            #else:
+              #  lossG = self.L2(fake_img.view(fake_img.size(0), -1), gray.view(gray.size(0), -1))
+            #lossG.backward()
 
             # pretrain only
-            fake_img = self.G_model(img_ab)
-            lossG = self.L2(fake_img.view(fake_img.size(0), -1), img_ab.view(img_ab.size(0), -1))
-            lossG.backward()
+            if pretrain:
+                #temptorch = torch.cat([gray2, img_ab2])
+                fake_img_nomask = self.G_model(gray.detach().to(self.device))
+                #lossG2 = self.L2(fake_img_nomask[:, :, 50:, 20:-20].reshape(fake_img_nomask.size(0), -1), gray2[:, :, 50:, 20:-20].reshape(gray2.size(0), -1))
+                lossG2 = self.L2(fake_img_nomask.reshape(fake_img_nomask.size(0), -1), gray.detach().reshape(gray.size(0), -1).to(self.device))
+                lossG2.backward()
+                lossesG_L1 += lossG2.item()
+                #fake_img_nomask = self.G_model(gray.detach().to(self.device))
+                #lossG2 = self.L2(fake_img_nomask[:, :, 50:, 20:-20].reshape(fake_img_nomask.size(0), -1), img_ab.detach()[:, :, 50:, 20:-20].reshape(img_ab2.size(0), -1).to(self.device))
+                #lossG2.backward()
+                #lossesG_L1 += lossG2.item()
+                fake_img_mask = self.G_model(img_ab.detach().to(self.device))
+                lossG2 = self.L2(fake_img_mask.reshape(fake_img_mask.size(0), -1), img_ab.detach().reshape(img_ab.size(0), -1).to(self.device))
+                lossG2.backward()
+                lossesG_L1 += lossG2.item()
+                
+                
+
             #Dfake = D_output.data.mean()
             self.G_optimizer.step()
 
@@ -144,7 +188,7 @@ class GAN_256():
              #self.best_acc2 = acc_2
              #self.best_acc5 = acc_5
              self.save()
-
+        return lossesD, lossesG_GAN, lossesG_L1
         # update history
         #loss_all = [lossD, D_loss_real, D_loss_fake, lossG, lossG_GAN, lossG_L1, lossD_val,
         #            lossG_val, Dreal, Dfake]
@@ -287,164 +331,3 @@ class GAN_256():
         plt.title('Accuracy History GAN'), plt.legend(), plt.ylim([0,1])
         plt.savefig('./loss_plot/accuracy_history_GAN.png')
 
-
-class Unet_256():
-    def __init__(self, learning_rate=1e-4, save_path="trained_256_UNet_model.pth.tar"):
-        self.trained_epoch = 0
-        self.learning_rate = learning_rate
-        self.best_acc2 = 0.0
-        self.best_acc5 = 0.0
-
-        try:
-            self.model = U_Net_network_256().cuda()
-        except TypeError:
-            print("cuda is not available!")
-
-        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
-        self.criterion = nn.MSELoss()
-
-        self.loss_train_history = []
-        self.loss_val_history = []
-        self.acc_history = []
-
-        # read trained model
-        self.save_path = save_path
-        if os.path.exists(self.save_path):
-            checkpoint = torch.load(self.save_path)
-            self.model.load_state_dict(checkpoint['state_dict'])
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            self.trained_epoch = checkpoint['trained_epoch']
-            self.loss_train_history = checkpoint['loss_train_history']
-            self.loss_val_history = checkpoint['loss_val_history']
-            self.acc_history = checkpoint['acc_history']
-            self.best_acc2 = checkpoint['best_acc2']
-            self.best_acc5 = checkpoint['best_acc5']
-
-    def train_one_epoch(self, train_loader, val_loader, epoch):
-        self.trained_epoch = epoch
-        if epoch % 10 == 0:
-            self.learning_rate *= 0.95
-            self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
-
-        losses, cnt = 0.0, 0
-
-        self.model.train()
-
-        for gray, color in tqdm(train_loader):
-            gray = Variable(gray.cuda())
-            color = Variable(color.cuda())
-
-            self.model.zero_grad()
-            output = self.model(gray)
-            loss = self.criterion(output.view(output.size(0), -1), color.view(color.size(0), -1))
-            loss.backward()
-            self.optimizer.step()
-
-            losses += loss.item()
-            cnt += 1
-
-        print('U-Net training loss: %.3f ' % (losses/cnt))
-
-        loss_val, acc_2, acc_5 = self.validate(val_loader)
-        # if acc_2 > self.best_acc2 and acc_5 > self.best_acc5:
-        #     self.best_acc2 = acc_2
-        #     self.best_acc5 = acc_5
-        #     self.save()
-
-        # update history
-        self.loss_train_history.append(losses/cnt)
-        self.loss_val_history.append(loss_val)
-        self.acc_history.append(np.vstack((acc_2, acc_5)))
-
-    def validate(self, val_loader):
-        losses, cnt = 0.0, 0
-        acc_2_list, acc_5_list = [], []
-
-        with torch.no_grad():
-            self.model.eval()
-
-            for gray, color in tqdm(val_loader):
-                gray = Variable(gray.cuda())
-                color = Variable(color.cuda())
-
-                output = self.model(gray)
-                loss = self.criterion(output.view(output.size(0), -1), color.view(color.size(0), -1))
-                # F.mse_loss(output, img_LAB).item()
-                losses += loss.item()
-                cnt += 1
-
-                acc_2, acc_5 = val_accuracy(output, color)
-                acc_2_list.append(acc_2)
-                acc_5_list.append(acc_5)
-
-            print('U-Net validation loss: %.3f' % (losses/cnt))
-
-            acc_2 = torch.stack(acc_2_list).mean().item()
-            acc_5 = torch.stack(acc_5_list).mean().item()
-            print('U-Net: 2%% Validation Accuracy = %.4f' % acc_2)
-            print('U-Net: 5%% Validation Accuracy = %.4f' % acc_5)
-
-            return losses/cnt, acc_2, acc_5
-
-    def test(self, test_loader):
-        losses, cnt = 0.0, 0
-        acc_2_list, acc_5_list = [], []
-
-        with torch.no_grad():
-            self.model.eval()
-
-            for gray, color in tqdm(test_loader):
-                gray = Variable(gray.cuda())
-                color = Variable(color.cuda())
-
-                output = self.model(gray)
-                loss = self.criterion(output.view(output.size(0), -1), color.view(color.size(0), -1))
-                losses += loss.item()
-                cnt += 1
-
-                acc_2, acc_5 = val_accuracy(output, color)
-                acc_2_list.append(acc_2)
-                acc_5_list.append(acc_5)
-
-            print('U-Net test loss: %.3f' % (losses / cnt))
-
-            acc_2 = torch.stack(acc_2_list).mean().item()
-            acc_5 = torch.stack(acc_5_list).mean().item()
-            print('U-Net: 2%% test Accuracy = %.4f' % acc_2)
-            print('U-Net: 5%% test Accuracy = %.4f' % acc_5)
-
-            return losses / cnt, acc_2, acc_5
-
-    def save(self):
-        torch.save({'state_dict': self.model.state_dict(),
-                    'optimizer_state_dict': self.optimizer.state_dict(),
-                    'loss_train_history': self.loss_train_history,
-                    'loss_val_history': self.loss_val_history,
-                    'acc_history': self.acc_history,
-                    'best_acc2': self.best_acc2,
-                    'best_acc5': self.best_acc5,
-                    'trained_epoch': self.trained_epoch}, self.save_path)
-
-    def plot_loss(self):
-        if not os.path.exists("loss_plot/"):
-            print('creating directory loss_plot/')
-            os.mkdir("loss_plot/")
-
-        plt.figure()
-        plt.plot(self.loss_train_history)
-        plt.xlabel('epoch'), plt.title('{}'.format('loss_unet_train'))
-        plt.savefig('./loss_plot/{}_history.png'.format('loss_unet_train'))
-        plt.clf()
-
-        plt.figure()
-        plt.plot(self.loss_val_history)
-        plt.xlabel('epoch'), plt.title('{}'.format('loss_unet_val'))
-        plt.savefig('./loss_plot/{}_history.png'.format('loss_unet_val'))
-        plt.clf()
-
-        plt.figure()
-        acc_history = np.hstack(self.acc_history)
-        plt.plot(acc_history[0], label='2%% accuracy')
-        plt.plot(acc_history[1], label='5%% accuracy')
-        plt.title('Accuracy History U-Net'), plt.legend()
-        plt.savefig('./loss_plot/accuracy_history_unet.png')

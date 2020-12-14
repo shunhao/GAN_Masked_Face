@@ -3,6 +3,7 @@ from torch.autograd import Variable
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
+import copy
 
 
 def val_accuracy(fake, real):
@@ -19,69 +20,43 @@ def val_accuracy(fake, real):
     return acc_2, acc_5
 
 
-def visual_result(gray, reals, G_model, U_model, epoch=None, mode='val'):
-    fakes_G = G_model(Variable(gray.cuda()))
-    fakes_U = U_model(Variable(gray.cuda()))
 
-    fakes_G = torch.cat([Variable(gray.cuda()), fakes_G], dim=1)
-    fakes_U = torch.cat([Variable(gray.cuda()), fakes_U], dim=1)
-    reals = torch.cat([Variable(gray.cuda()), Variable(reals.cuda())], dim=1)
+def visual_result_singleModel(nomasks, reals, model, epoch):
+    device = torch.device('cpu')
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+
+    fakes = model(Variable(nomasks.to(device)))
+
 
     plt.figure(figsize=(25,10))
-    num_plot = 9
-    for i in range(num_plot):
-        fake_G = fakes_G[i].cpu().detach().numpy()
-        fake_U = fakes_U[i].cpu().detach().numpy()
-        real = reals[i].cpu().numpy()
-
-        real = ((real + 0.0) * 128.0).astype('uint8')
-        fake_G = ((fake_G + 0.0) * 128.0).astype('uint8')
-        fake_U = ((fake_U + 0.0) * 128.0).astype('uint8')
-
-        real = cv2.cvtColor(np.transpose(real, (1,2,0)), cv2.COLOR_LAB2RGB)
-        fake_G = cv2.cvtColor(np.transpose(fake_G, (1,2,0)), cv2.COLOR_LAB2RGB)
-        fake_U = cv2.cvtColor(np.transpose(fake_U, (1, 2, 0)), cv2.COLOR_LAB2RGB)
-
-        plt.subplot(3, num_plot / 3, i+1)
-        plt.imshow(np.hstack((real, fake_G, fake_U)))
-        plt.axis('off')
-
-    plt.tight_layout()
-
-    if mode == 'val':
-        plt.savefig('./val/' + 'epoch%d_val.png' % epoch)
-    else:
-        plt.savefig('./val/test.png')
-    plt.clf()
-
-
-def visual_result_singleModel(gray, reals, model, epoch):
-    fakes = model(Variable(gray.cuda()))
-
-    plt.figure(figsize=(25,10))
-    num_plot = 2
+    num_plot = 3
     for i in range(num_plot):
         fake = fakes[i].cpu().detach().numpy()
         real = reals[i].cpu().numpy()
+        nomask = nomasks[i].cpu().numpy()
 
         #real = ((real + 1.0) * 128.0).astype('uint8')
         #fake = ((fake + 1.0) * 128.0).astype('uint8')
 
         
-        real = (real * 256.0).astype('uint8')
-        fake = np.clip(fake * 256.0, 0, 255).astype('uint8')
+        real = (real * 256).astype('uint8')
+        nomask = (nomask * 256).astype('uint8')
+        fake = np.clip(fake * 256, 0, 255).astype('uint8')
+        #fake2 = copy.deepcopy(nomask)
+        #fake2[:, 48:, 24:-24] = fake
 
         real = cv2.cvtColor(np.transpose(real, (1,2,0)), cv2.COLOR_BGR2RGB)
+        nomask = cv2.cvtColor(np.transpose(nomask, (1,2,0)), cv2.COLOR_BGR2RGB)
         fake = cv2.cvtColor(np.transpose(fake, (1,2,0)), cv2.COLOR_BGR2RGB)
 
-
-        plt.subplot(1, 2, i+1)
-        plt.imshow(np.hstack((real, fake)))
+        plt.subplot(1, 3, i+1)
+        plt.imshow(np.hstack((nomask, fake)))
         plt.axis('off')
 
     plt.tight_layout()
-    plt.savefig('/content/val/' + 'epoch%d_val.png' % epoch)
-    plt.clf()
+    plt.savefig('./content/val/' + 'epoch%d_val.png' % epoch)
+    plt.close()
 
 
 def visual_result_four(gray, reals, G_model, U_model, epoch=None, mode='val'):
